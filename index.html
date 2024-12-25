@@ -78,7 +78,6 @@
             max-height: 600px;
         }
 
-        /* Мобильная версия */
         @media (max-width: 600px) {
             .container {
                 padding: 10px;
@@ -100,35 +99,6 @@
                 height: calc(100vh - 200px);
             }
         }
-
-        /* Кастомизация Video.js */
-        .video-js .vjs-big-play-button {
-            background-color: rgba(33, 150, 243, 0.8);
-            border: none;
-            border-radius: 50%;
-            width: 80px;
-            height: 80px;
-            line-height: 80px;
-            left: 50%;
-            top: 50%;
-            transform: translate(-50%, -50%);
-        }
-
-        .video-js:hover .vjs-big-play-button {
-            background-color: #2196F3;
-        }
-
-        .video-js .vjs-control-bar {
-            background-color: rgba(0, 0, 0, 0.7);
-        }
-
-        .video-js .vjs-progress-holder {
-            height: 5px;
-        }
-
-        .video-js .vjs-play-progress {
-            background-color: #2196F3;
-        }
     </style>
 </head>
 <body>
@@ -146,50 +116,51 @@
         </div>
     </div>
 
-    <!-- Video.js JavaScript -->
     <script src="https://vjs.zencdn.net/8.5.2/video.min.js"></script>
     <script>
         let player;
 
-        function extractGoogleDriveId(url) {
-            const pattern = /(?:https?:\/\/)?(?:drive\.google\.com\/)?(?:file\/d\/|open\?id=)([^\/\?&]+)/;
-            const match = url.match(pattern);
-            return match ? match[1] : null;
+        function extractGoogleDriveFileId(url) {
+            // Поддержка разных форматов ссылок Google Drive
+            const patterns = [
+                /\/file\/d\/([^\/]+)/,          // Format: /file/d/FILE_ID/...
+                /id=([^&]+)/,                    // Format: ?id=FILE_ID&...
+                /\/open\?id=([^&]+)/            // Format: /open?id=FILE_ID...
+            ];
+
+            for (let pattern of patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+
+        function getGoogleDriveDirectUrl(fileId) {
+            return `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=YOUR_API_KEY`;
+            // Альтернативный вариант без API key:
+            // return `https://drive.google.com/uc?export=view&id=${fileId}`;
         }
 
         function loadVideo(autoplay = false) {
             const videoUrl = document.getElementById('videoUrl').value;
-            const fileId = extractGoogleDriveId(videoUrl);
+            const fileId = extractGoogleDriveFileId(videoUrl);
             
             if (fileId) {
-                const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-
-                // Если плеер уже существует, уничтожаем его
-                if (player) {
-                    player.dispose();
-                }
-
-                // Создаем новый плеер
-                player = videojs('my-video', {
-                    controls: true,
-                    fluid: true,
-                    preload: 'auto',
-                    autoplay: autoplay,
-                    playbackRates: [0.5, 1, 1.5, 2],
-                    sources: [{
-                        src: directUrl,
-                        type: 'video/mp4'
-                    }]
-                });
+                // Создаем iframe для встраивания видео Google Drive
+                const container = document.querySelector('.video-container');
+                container.innerHTML = `
+                    <iframe 
+                        src="https://drive.google.com/file/d/${fileId}/preview" 
+                        width="100%" 
+                        height="100%" 
+                        allow="autoplay"
+                        allowfullscreen>
+                    </iframe>`;
 
                 // Обновляем URL страницы
                 const newUrl = new URL(window.location.href);
                 newUrl.searchParams.set('video', videoUrl);
                 window.history.pushState({}, '', newUrl);
-
-                player.on('error', function() {
-                    alert('Ошибка загрузки видео. Проверьте ссылку и доступ к файлу.');
-                });
             } else {
                 alert('Неверная ссылка Google Drive');
             }
@@ -199,13 +170,6 @@
         window.onload = function() {
             const params = new URLSearchParams(window.location.search);
             const videoUrl = params.get('video');
-            
-            // Создаем начальный плеер
-            player = videojs('my-video', {
-                controls: true,
-                fluid: true,
-                preload: 'auto'
-            });
             
             if (videoUrl) {
                 document.getElementById('videoUrl').value = videoUrl;
