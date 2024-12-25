@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Video Player</title>
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            width: 70%;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #player-container {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="input-group">
+            <input type="text" id="videoUrl" placeholder="Вставьте ссылку с Google Drive">
+            <button onclick="loadVideo()">Смотреть</button>
+        </div>
+        <div id="player-container">
+            <video id="player" playsinline controls>
+                <source id="videoSource" src="" type="video/mp4">
+                Ваш браузер не поддерживает HTML5 видео.
+            </video>
+        </div>
+    </div>
+
+    <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
+    <script>
+        // Функция для получения параметров URL
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return params;
+        }
+
+        // Функция для извлечения ID из ссылки Google Drive
+        function extractGoogleDriveId(url) {
+            const pattern = /(?:https?:\/\/)?(?:drive\.google\.com\/)?(?:file\/d\/|open\?id=)([^\/\?&]+)/;
+            const match = url.match(pattern);
+            return match ? match[1] : null;
+        }
+
+        // Функция для загрузки видео
+        function loadVideo(autoplay = false) {
+            const videoUrl = document.getElementById('videoUrl').value;
+            const fileId = extractGoogleDriveId(videoUrl);
+            
+            if (fileId) {
+                const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                document.getElementById('videoSource').src = directUrl;
+                document.getElementById('player-container').style.display = 'block';
+                
+                // Инициализация или обновление плеера
+                if (window.player) {
+                    window.player.source = {
+                        type: 'video',
+                        sources: [{
+                            src: directUrl,
+                            type: 'video/mp4'
+                        }]
+                    };
+                } else {
+                    window.player = new Plyr('#player', {
+                        controls: ['play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
+                        autoplay: autoplay
+                    });
+                }
+
+                // Обновление URL страницы
+                const newUrl = new URL(window.location.href);
+                newUrl.searchParams.set('video', videoUrl);
+                window.history.pushState({}, '', newUrl);
+            } else {
+                alert('Неверная ссылка Google Drive');
+            }
+        }
+
+        // При загрузке страницы проверяем наличие ссылки в URL
+        window.onload = function() {
+            const params = getUrlParams();
+            const videoUrl = params.get('video');
+            
+            if (videoUrl) {
+                document.getElementById('videoUrl').value = videoUrl;
+                loadVideo(true); // true для автовоспроизведения
+            }
+        };
+    </script>
+</body>
+</html>
